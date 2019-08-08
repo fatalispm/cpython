@@ -70,6 +70,7 @@ const char * const _PyParser_TokenNames[] = {
     "<NL>",
     "<ENCODING>",
     "<N_TOKENS>",
+    "PIPE",
 };
 
 /* Return the token corresponding to a single character */
@@ -183,6 +184,7 @@ PyToken_TwoChars(int c1, int c2)
     case '|':
         switch (c2) {
         case '=': return VBAREQUAL;
+        case '>': return PIPE;
         }
         break;
     }

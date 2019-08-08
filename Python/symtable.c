@@ -1235,6 +1235,9 @@ symtable_visit_stmt(struct symtable *st, stmt_ty s)
         if (s->v.For.orelse)
             VISIT_SEQ(st, stmt, s->v.For.orelse);
         break;
+    // case Pipe_kind:
+    //     return 0;
+    //     break;
     case While_kind:
         VISIT(st, expr, s->v.While.test);
         VISIT_SEQ(st, stmt, s->v.While.body);
@@ -1459,6 +1462,7 @@ symtable_visit_expr(struct symtable *st, expr_ty e)
         VISIT(st, expr, e->v.NamedExpr.value);
         VISIT(st, expr, e->v.NamedExpr.target);
         break;
+
     case BoolOp_kind:
         VISIT_SEQ(st, expr, e->v.BoolOp.values);
         break;

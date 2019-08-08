@@ -4715,6 +4715,11 @@ compiler_visit_expr1(struct compiler *c, expr_ty e)
         ADDOP(c, DUP_TOP);
         VISIT(c, expr, e->v.NamedExpr.target);
         break;
+    case Pipe_kind:
+        VISIT(c, expr, e->v.Pipe.left);
+        ADDOP(c, DUP_TOP);
+        VISIT(c, expr, e->v.Pipe.right);
+        break;
     case BoolOp_kind:
         return compiler_boolop(c, e);
     case BinOp_kind:

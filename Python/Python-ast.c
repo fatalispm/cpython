@@ -219,14 +219,19 @@ static char *BoolOp_fields[]={
     "op",
     "values",
 };
+static PyTypeObject *Pipe_type;
+_Py_IDENTIFIER(left);
+_Py_IDENTIFIER(right);
+static char *Pipe_fields[]={
+    "left",
+    "right",
+};
 static PyTypeObject *NamedExpr_type;
 static char *NamedExpr_fields[]={
     "target",
     "value",
 };
 static PyTypeObject *BinOp_type;
-_Py_IDENTIFIER(left);
-_Py_IDENTIFIER(right);
 static char *BinOp_fields[]={
     "left",
     "op",
@@ -918,6 +923,8 @@ static int init_types(void)
     if (!add_attributes(expr_type, expr_attributes, 4)) return 0;
     BoolOp_type = make_type("BoolOp", expr_type, BoolOp_fields, 2);
     if (!BoolOp_type) return 0;
+    Pipe_type = make_type("Pipe", expr_type, Pipe_fields, 2);
+    if (!Pipe_type) return 0;
     NamedExpr_type = make_type("NamedExpr", expr_type, NamedExpr_fields, 2);
     if (!NamedExpr_type) return 0;
     BinOp_type = make_type("BinOp", expr_type, BinOp_fields, 3);
@@ -1849,6 +1856,34 @@ BoolOp(boolop_ty op, asdl_seq * values, int lineno, int col_offset, int
     p->kind = BoolOp_kind;
     p->v.BoolOp.op = op;
     p->v.BoolOp.values = values;
+    p->lineno = lineno;
+    p->col_offset = col_offset;
+    p->end_lineno = end_lineno;
+    p->end_col_offset = end_col_offset;
+    return p;
+}
+
+expr_ty
+Pipe(expr_ty left, expr_ty right, int lineno, int col_offset, int end_lineno,
+     int end_col_offset, PyArena *arena)
+{
+    expr_ty p;
+    if (!left) {
+        PyErr_SetString(PyExc_ValueError,
+                        "field left is required for Pipe");
+        return NULL;
+    }
+    if (!right) {
+        PyErr_SetString(PyExc_ValueError,
+                        "field right is required for Pipe");
+        return NULL;
+    }
+    p = (expr_ty)PyArena_Malloc(arena, sizeof(*p));
+    if (!p)
+        return NULL;
+    p->kind = Pipe_kind;
+    p->v.Pipe.left = left;
+    p->v.Pipe.right = right;
     p->lineno = lineno;
     p->col_offset = col_offset;
     p->end_lineno = end_lineno;
@@ -3247,6 +3282,20 @@ ast2obj_expr(void* _o)
         value = ast2obj_list(o->v.BoolOp.values, ast2obj_expr);
         if (!value) goto failed;
         if (_PyObject_SetAttrId(result, &PyId_values, value) == -1)
+            goto failed;
+        Py_DECREF(value);
+        break;
+    case Pipe_kind:
+        result = PyType_GenericNew(Pipe_type, NULL, NULL);
+        if (!result) goto failed;
+        value = ast2obj_expr(o->v.Pipe.left);
+        if (!value) goto failed;
+        if (_PyObject_SetAttrId(result, &PyId_left, value) == -1)
+            goto failed;
+        Py_DECREF(value);
+        value = ast2obj_expr(o->v.Pipe.right);
+        if (!value) goto failed;
+        if (_PyObject_SetAttrId(result, &PyId_right, value) == -1)
             goto failed;
         Py_DECREF(value);
         break;
@@ -6329,6 +6378,45 @@ obj2ast_expr(PyObject* obj, expr_ty* out, PyArena* arena)
         if (*out == NULL) goto failed;
         return 0;
     }
+    isinstance = PyObject_IsInstance(obj, (PyObject*)Pipe_type);
+    if (isinstance == -1) {
+        return 1;
+    }
+    if (isinstance) {
+        expr_ty left;
+        expr_ty right;
+
+        if (_PyObject_LookupAttrId(obj, &PyId_left, &tmp) < 0) {
+            return 1;
+        }
+        if (tmp == NULL) {
+            PyErr_SetString(PyExc_TypeError, "required field \"left\" missing from Pipe");
+            return 1;
+        }
+        else {
+            int res;
+            res = obj2ast_expr(tmp, &left, arena);
+            if (res != 0) goto failed;
+            Py_CLEAR(tmp);
+        }
+        if (_PyObject_LookupAttrId(obj, &PyId_right, &tmp) < 0) {
+            return 1;
+        }
+        if (tmp == NULL) {
+            PyErr_SetString(PyExc_TypeError, "required field \"right\" missing from Pipe");
+            return 1;
+        }
+        else {
+            int res;
+            res = obj2ast_expr(tmp, &right, arena);
+            if (res != 0) goto failed;
+            Py_CLEAR(tmp);
+        }
+        *out = Pipe(left, right, lineno, col_offset, end_lineno,
+                    end_col_offset, arena);
+        if (*out == NULL) goto failed;
+        return 0;
+    }
     isinstance = PyObject_IsInstance(obj, (PyObject*)NamedExpr_type);
     if (isinstance == -1) {
         return 1;
@@ -8845,6 +8933,7 @@ PyInit__ast(void)
     if (PyDict_SetItemString(d, "expr", (PyObject*)expr_type) < 0) return NULL;
     if (PyDict_SetItemString(d, "BoolOp", (PyObject*)BoolOp_type) < 0) return
         NULL;
+    if (PyDict_SetItemString(d, "Pipe", (PyObject*)Pipe_type) < 0) return NULL;
     if (PyDict_SetItemString(d, "NamedExpr", (PyObject*)NamedExpr_type) < 0)
         return NULL;
     if (PyDict_SetItemString(d, "BinOp", (PyObject*)BinOp_type) < 0) return

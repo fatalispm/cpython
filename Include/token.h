@@ -72,6 +72,7 @@ extern "C" {
 #define ERRORTOKEN      59
 #define N_TOKENS        63
 #define NT_OFFSET       256
+#define PIPE 64
 
 /* Special definitions for cooperation with parser */
 
