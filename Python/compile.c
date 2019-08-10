@@ -3878,7 +3878,7 @@ check_index(struct compiler *c, expr_ty e, slice_ty s)
     case FormattedValue_kind:
         return compiler_warn(c, "%.200s indices must be integers or slices, "
                                 "not %.200s; "
-                                "perhaps you missed a comma?",
+                                "perhaps you ——missed a comma?",
                                 infer_type(e)->tp_name,
                                 index_type->tp_name);
     default:

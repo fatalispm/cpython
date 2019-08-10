@@ -994,6 +994,8 @@ get_operator(struct compiling *c, const node *n)
             return FloorDiv;
         case PERCENT:
             return Mod;
+        case PIPE:
+            return Pipe;
         default:
             return (operator_ty)0;
     }
@@ -1968,6 +1970,30 @@ ast_for_namedexpr(struct compiling *c, const node *n)
 }
 
 static expr_ty
+ast_for_for_piped_expr(struct compiling *c, const node *n)
+{
+
+    expr_ty left, right;
+
+    left = ast_for_expr(c, CHILD(n, 0));
+    if (!left)
+        return NULL;
+    asdl_seq *args;
+    args = _Py_asdl_seq_new(1, c->c_arena);
+
+    asdl_seq_SET(args, 0, left);
+
+
+
+    right = ast_for_expr(c, CHILD(n, 2));
+
+    if (!right)
+        return NULL;
+    return Call(right, args, 0, LINENO(n), n->n_col_offset,
+                n->n_end_lineno, n->n_end_col_offset, c->c_arena);
+}
+
+static expr_ty
 ast_for_lambdef(struct compiling *c, const node *n)
 {
     /* lambdef: 'lambda' [varargslist] ':' test
@@ -2625,9 +2651,15 @@ ast_for_binop(struct compiling *c, const node *n)
     if (!newoperator)
         return NULL;
 
-    result = BinOp(expr1, newoperator, expr2, LINENO(n), n->n_col_offset,
+    if(newoperator == Pipe) {
+        result = ast_for_for_piped_expr(c, n);
+    }
+
+    else {
+        result = BinOp(expr1, newoperator, expr2, LINENO(n), n->n_col_offset,
                    CHILD(n, 2)->n_end_lineno, CHILD(n, 2)->n_end_col_offset,
                    c->c_arena);
+    }
     if (!result)
         return NULL;
 
@@ -2639,19 +2671,31 @@ ast_for_binop(struct compiling *c, const node *n)
         newoperator = get_operator(c, next_oper);
         if (!newoperator)
             return NULL;
-
+       
         tmp = ast_for_expr(c, CHILD(n, i * 2 + 2));
         if (!tmp)
             return NULL;
+        if(newoperator == Pipe) {
+            asdl_seq *args;
+            args = _Py_asdl_seq_new(1, c->c_arena);
 
-        tmp_result = BinOp(result, newoperator, tmp,
+            asdl_seq_SET(args, 0, result);
+            result = Call(tmp, args, 0, LINENO(n), n->n_col_offset,
+                n->n_end_lineno, n->n_end_col_offset, c->c_arena
+            );
+        }
+
+
+        else {
+            tmp_result = BinOp(result, newoperator, tmp,
                            LINENO(next_oper), next_oper->n_col_offset,
                            CHILD(n, i * 2 + 2)->n_end_lineno,
                            CHILD(n, i * 2 + 2)->n_end_col_offset,
                            c->c_arena);
-        if (!tmp_result)
-            return NULL;
-        result = tmp_result;
+            if (!tmp_result)
+                return NULL;
+            result = tmp_result;
+        }
     }
     return result;
 }
@@ -2889,6 +2933,7 @@ ast_for_expr(struct compiling *c, const node *n)
         case namedexpr_test:
             if (NCH(n) == 3)
                 return ast_for_namedexpr(c, n);
+
             /* Fallthrough */
         case test:
         case test_nocond:
@@ -3025,6 +3070,7 @@ ast_for_expr(struct compiling *c, const node *n)
         case power:
             return ast_for_power(c, n);
         default:
+            
             PyErr_Format(PyExc_SystemError, "unhandled expr: %d", TYPE(n));
             return NULL;
     }
