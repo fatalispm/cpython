@@ -75,6 +75,29 @@ New Features
 Other Language Changes
 ======================
 
+* :func:`builtins.__import__` now raises :exc:`ImportError` instead of
+  :exc:`ValueError` as used to occur when a relative import went past
+  its top-level package.
+  (Contributed by Ngalim Siregar in :issue:`37444`.)
+
+
+* Python now gets the absolute path of the script filename specified on
+  the command line (ex: ``python3 script.py``): the ``__file__`` attribute of
+  the ``__main__`` module, ``sys.argv[0]`` and ``sys.path[0]`` become an
+  absolute path, rather than a relative path. These paths now remain valid
+  after the current directory is changed by :func:`os.chdir`. As a side effect,
+  a traceback also displays the absolute path for ``__main__`` module frames in
+  this case.
+  (Contributed by Victor Stinner in :issue:`20443`.)
+
+* In development mode and in debug build, *encoding* and *errors* arguments are
+  now checked on string encoding and decoding operations. Examples:
+  :func:`open`, :meth:`str.encode` and :meth:`bytes.decode`.
+
+  By default, for best performances, the *errors* argument is only checked at
+  the first encoding/decoding error, and the *encoding* argument is sometimes
+  ignored for empty strings.
+  (Contributed by Victor Stinner in :issue:`37388`.)
 
 
 New Modules
@@ -91,9 +114,23 @@ threading
 
 In a subinterpreter, spawning a daemon thread now raises an exception. Daemon
 threads were never supported in subinterpreters. Previously, the subinterpreter
-finalization crashed with a Pyton fatal error if a daemon thread was still
+finalization crashed with a Python fatal error if a daemon thread was still
 running.
+(Contributed by Victor Stinner in :issue:`37266`.)
 
+pprint
+------
+
+:mod:`pprint` can now pretty-print :class:`types.SimpleNamespace`.
+(Contributed by Carl Bordum Hansen in :issue:`37376`.)
+
+importlib
+---------
+
+To improve consistency with import statements, :func:`importlib.util.resolve_name`
+now raises :exc:`ImportError` instead of :exc:`ValueError` for invalid relative
+import attempts.
+(Contributed by Ngalim Siregar in :issue:`37444`.)
 
 Optimizations
 =============
@@ -118,9 +155,18 @@ Deprecated
   Python versions it will raise a :exc:`TypeError` for all floats.
   (Contributed by Serhiy Storchaka in :issue:`37315`.)
 
+* The :mod:`parser` module is deprecated and will be removed in future versions
+  of Python. For the majority of use cases users can leverage the Abstract Syntax
+  Tree (AST) generation and compilation stage, using the :mod:`ast` module.
+
 
 Removed
 =======
+
+* The undocumented ``sys.callstats()`` function has been removed. Since Python
+  3.7, it was deprecated and always returned ``None``. It required a special
+  build option ``CALL_PROFILE`` which was already removed in Python 3.7.
+  (Contributed by Victor Stinner in :issue:`37414`.)
 
 * The ``sys.getcheckinterval()`` and ``sys.setcheckinterval()`` functions have
   been removed. They were deprecated since Python 3.2. Use
@@ -147,4 +193,11 @@ Porting to Python 3.9
 This section lists previously described changes and other bugfixes
 that may require changes to your code.
 
+Changes in the Python API
+-------------------------
 
+* :func:`builtins.__import__` and :func:`importlib.util.resolve_name` now raise
+  :exc:`ImportError` where it previously raised :exc:`ValueError`. Callers
+  catching the specific exception type and supporting both Python 3.9 and
+  earlier versions will need to catch both:
+  ``except (ImportError, ValueError):``

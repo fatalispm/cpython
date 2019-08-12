@@ -481,8 +481,8 @@ _Py_IDENTIFIER(kw_defaults);
 _Py_IDENTIFIER(kwarg);
 _Py_IDENTIFIER(defaults);
 static char *arguments_fields[]={
-    "args",
     "posonlyargs",
+    "args",
     "vararg",
     "kwonlyargs",
     "kw_defaults",
@@ -2608,7 +2608,7 @@ ExceptHandler(expr_ty type, identifier name, asdl_seq * body, int lineno, int
 }
 
 arguments_ty
-arguments(asdl_seq * args, asdl_seq * posonlyargs, arg_ty vararg, asdl_seq *
+arguments(asdl_seq * posonlyargs, asdl_seq * args, arg_ty vararg, asdl_seq *
           kwonlyargs, asdl_seq * kw_defaults, arg_ty kwarg, asdl_seq *
           defaults, PyArena *arena)
 {
@@ -2616,8 +2616,8 @@ arguments(asdl_seq * args, asdl_seq * posonlyargs, arg_ty vararg, asdl_seq *
     p = (arguments_ty)PyArena_Malloc(arena, sizeof(*p));
     if (!p)
         return NULL;
-    p->args = args;
     p->posonlyargs = posonlyargs;
+    p->args = args;
     p->vararg = vararg;
     p->kwonlyargs = kwonlyargs;
     p->kw_defaults = kw_defaults;
@@ -4010,14 +4010,14 @@ ast2obj_arguments(void* _o)
 
     result = PyType_GenericNew(arguments_type, NULL, NULL);
     if (!result) return NULL;
-    value = ast2obj_list(o->args, ast2obj_arg);
-    if (!value) goto failed;
-    if (_PyObject_SetAttrId(result, &PyId_args, value) == -1)
-        goto failed;
-    Py_DECREF(value);
     value = ast2obj_list(o->posonlyargs, ast2obj_arg);
     if (!value) goto failed;
     if (_PyObject_SetAttrId(result, &PyId_posonlyargs, value) == -1)
+        goto failed;
+    Py_DECREF(value);
+    value = ast2obj_list(o->args, ast2obj_arg);
+    if (!value) goto failed;
+    if (_PyObject_SetAttrId(result, &PyId_args, value) == -1)
         goto failed;
     Py_DECREF(value);
     value = ast2obj_arg(o->vararg);
@@ -8376,44 +8376,14 @@ int
 obj2ast_arguments(PyObject* obj, arguments_ty* out, PyArena* arena)
 {
     PyObject* tmp = NULL;
-    asdl_seq* args;
     asdl_seq* posonlyargs;
+    asdl_seq* args;
     arg_ty vararg;
     asdl_seq* kwonlyargs;
     asdl_seq* kw_defaults;
     arg_ty kwarg;
     asdl_seq* defaults;
 
-    if (_PyObject_LookupAttrId(obj, &PyId_args, &tmp) < 0) {
-        return 1;
-    }
-    if (tmp == NULL) {
-        PyErr_SetString(PyExc_TypeError, "required field \"args\" missing from arguments");
-        return 1;
-    }
-    else {
-        int res;
-        Py_ssize_t len;
-        Py_ssize_t i;
-        if (!PyList_Check(tmp)) {
-            PyErr_Format(PyExc_TypeError, "arguments field \"args\" must be a list, not a %.200s", tmp->ob_type->tp_name);
-            goto failed;
-        }
-        len = PyList_GET_SIZE(tmp);
-        args = _Py_asdl_seq_new(len, arena);
-        if (args == NULL) goto failed;
-        for (i = 0; i < len; i++) {
-            arg_ty val;
-            res = obj2ast_arg(PyList_GET_ITEM(tmp, i), &val, arena);
-            if (res != 0) goto failed;
-            if (len != PyList_GET_SIZE(tmp)) {
-                PyErr_SetString(PyExc_RuntimeError, "arguments field \"args\" changed size during iteration");
-                goto failed;
-            }
-            asdl_seq_SET(args, i, val);
-        }
-        Py_CLEAR(tmp);
-    }
     if (_PyObject_LookupAttrId(obj, &PyId_posonlyargs, &tmp) < 0) {
         return 1;
     }
@@ -8441,6 +8411,36 @@ obj2ast_arguments(PyObject* obj, arguments_ty* out, PyArena* arena)
                 goto failed;
             }
             asdl_seq_SET(posonlyargs, i, val);
+        }
+        Py_CLEAR(tmp);
+    }
+    if (_PyObject_LookupAttrId(obj, &PyId_args, &tmp) < 0) {
+        return 1;
+    }
+    if (tmp == NULL) {
+        PyErr_SetString(PyExc_TypeError, "required field \"args\" missing from arguments");
+        return 1;
+    }
+    else {
+        int res;
+        Py_ssize_t len;
+        Py_ssize_t i;
+        if (!PyList_Check(tmp)) {
+            PyErr_Format(PyExc_TypeError, "arguments field \"args\" must be a list, not a %.200s", tmp->ob_type->tp_name);
+            goto failed;
+        }
+        len = PyList_GET_SIZE(tmp);
+        args = _Py_asdl_seq_new(len, arena);
+        if (args == NULL) goto failed;
+        for (i = 0; i < len; i++) {
+            arg_ty val;
+            res = obj2ast_arg(PyList_GET_ITEM(tmp, i), &val, arena);
+            if (res != 0) goto failed;
+            if (len != PyList_GET_SIZE(tmp)) {
+                PyErr_SetString(PyExc_RuntimeError, "arguments field \"args\" changed size during iteration");
+                goto failed;
+            }
+            asdl_seq_SET(args, i, val);
         }
         Py_CLEAR(tmp);
     }
@@ -8560,7 +8560,7 @@ obj2ast_arguments(PyObject* obj, arguments_ty* out, PyArena* arena)
         }
         Py_CLEAR(tmp);
     }
-    *out = arguments(args, posonlyargs, vararg, kwonlyargs, kw_defaults, kwarg,
+    *out = arguments(posonlyargs, args, vararg, kwonlyargs, kw_defaults, kwarg,
                      defaults, arena);
     return 0;
 failed:

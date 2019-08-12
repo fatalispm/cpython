@@ -539,7 +539,7 @@ _PyImport_Cleanup(PyThreadState *tstate)
     }
     else {
         _Py_IDENTIFIER(clear);
-        if (_PyObject_CallMethodId(modules, &PyId_clear, "") == NULL) {
+        if (_PyObject_CallMethodIdNoArgs(modules, &PyId_clear) == NULL) {
             PyErr_WriteUnraisable(NULL);
         }
     }
@@ -833,7 +833,7 @@ import_add_module(PyThreadState *tstate, PyObject *name)
     }
     else {
         m = PyObject_GetItem(modules, name);
-        // For backward-comaptibility we copy the behavior
+        // For backward-compatibility we copy the behavior
         // of PyDict_GetItemWithError().
         if (_PyErr_ExceptionMatches(tstate, PyExc_KeyError)) {
             _PyErr_Clear(tstate);
@@ -962,9 +962,8 @@ PyImport_ExecCodeModuleWithPathnames(const char *name, PyObject *co,
         external= PyObject_GetAttrString(interp->importlib,
                                          "_bootstrap_external");
         if (external != NULL) {
-            pathobj = _PyObject_CallMethodIdObjArgs(external,
-                                                    &PyId__get_sourcefile, cpathobj,
-                                                    NULL);
+            pathobj = _PyObject_CallMethodIdOneArg(
+                external, &PyId__get_sourcefile, cpathobj);
             Py_DECREF(external);
         }
         if (pathobj == NULL)
@@ -1180,7 +1179,7 @@ get_path_importer(PyThreadState *tstate, PyObject *path_importer_cache,
         PyObject *hook = PyList_GetItem(path_hooks, j);
         if (hook == NULL)
             return NULL;
-        importer = PyObject_CallFunctionObjArgs(hook, p, NULL);
+        importer = _PyObject_CallOneArg(hook, p);
         if (importer != NULL)
             break;
 
@@ -1672,7 +1671,7 @@ resolve_name(PyThreadState *tstate, PyObject *name, PyObject *globals, int level
             goto error;
         }
         else if (last_dot == -1) {
-            _PyErr_SetString(tstate, PyExc_ValueError,
+            _PyErr_SetString(tstate, PyExc_ImportError,
                              "attempted relative import beyond top-level "
                              "package");
             goto error;
@@ -1827,9 +1826,8 @@ PyImport_ImportModuleLevelObject(PyObject *name, PyObject *globals,
          */
         spec = _PyObject_GetAttrId(mod, &PyId___spec__);
         if (_PyModuleSpec_IsInitializing(spec)) {
-            PyObject *value = _PyObject_CallMethodIdObjArgs(interp->importlib,
-                                            &PyId__lock_unlock_module, abs_name,
-                                            NULL);
+            PyObject *value = _PyObject_CallMethodIdOneArg(
+                interp->importlib, &PyId__lock_unlock_module, abs_name);
             if (value == NULL) {
                 Py_DECREF(spec);
                 goto error;
@@ -1968,7 +1966,7 @@ PyImport_ReloadModule(PyObject *m)
         }
     }
 
-    reloaded_module = _PyObject_CallMethodIdObjArgs(imp, &PyId_reload, m, NULL);
+    reloaded_module = _PyObject_CallMethodIdOneArg(imp, &PyId_reload, m);
     Py_DECREF(imp);
     return reloaded_module;
 }

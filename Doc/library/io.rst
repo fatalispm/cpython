@@ -120,7 +120,7 @@ High-level Module Interface
 
    This is an alias for the builtin :func:`open` function.
 
-   .. audit-event:: open "path mode flags"
+   .. audit-event:: open path,mode,flags io.open
 
       This function raises an :ref:`auditing event <auditing>` ``open`` with
       arguments ``path``, ``mode`` and ``flags``. The ``mode`` and ``flags``
@@ -327,7 +327,7 @@ I/O Base Classes
       Note that it's already possible to iterate on file objects using ``for
       line in file: ...`` without calling ``file.readlines()``.
 
-   .. method:: seek(offset[, whence])
+   .. method:: seek(offset, whence=SEEK_SET)
 
       Change the stream position to the given byte *offset*.  *offset* is
       interpreted relative to the position indicated by *whence*.  The default
@@ -831,7 +831,7 @@ Text I/O
 
       If *size* is specified, at most *size* characters will be read.
 
-   .. method:: seek(offset[, whence])
+   .. method:: seek(offset, whence=SEEK_SET)
 
       Change the stream position to the given *offset*.  Behaviour depends on
       the *whence* parameter.  The default value for *whence* is
